@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make Force Layout</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <script src="./simulate.js"></script>
+
+    <style>
+        .inactive{
+            opacity: .1;
+        }
+
+        line{
+            stroke:#909090;
+            stroke-opacity:0.5;
+        }
+
+    </style>
+
+</head>
+<body>
+<script>
+    d3.json("./data/publication_network.json").then(function (data){
+
+        console.log(data)
+
+        const width = 1200;
+        const height = 1200;
+
+        let svg = d3.select('body').append("svg").attr("viewBox",`0 0 ${width} ${height}`)
+
+        const main_group = svg.append("g")
+            .attr("transform", "translate(0, 50)")
+        
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        nodes = data.nodes;
+        links = data.links;
+
+        
+
+        scale_radius = d3.scaleSqrt()
+        .domain(d3.extent(nodes, d=>d.citations))
+        .range([5,25])
+
+        let node_elements = main_group.append("g")
+            .attr('transform',`translate(${width/2},${height/2})`)
+            .selectAll(".circle")
+            .data(data.nodes)
+            .enter()
+            .append("g")
+            .attr("class",d => `gr_${d.country_of_origin.replace(/\s/g, '').replace('.', '')}`)
+            .on("mouseenter", (d, data) => {
+                node_elements.classed("inactive",true)
+                d3.selectAll(".gr_"+data.country_of_origin.replace(/\s/g, '').replace('.', '')).classed("inactive",false)
+            })
+            .on("mouseleave", (d,data)=>{
+                d3.selectAll(".inactive").classed("inactive",false)
+            })
+        node_elements.append("circle")
+            .attr("r",  (d,i)=>{
+                return scale_radius(d.citations)
+            })
+            .attr("fill",  d=> color(d.country_of_origin))
+
+        const link_elements = main_group.append("g")
+            .attr('transform',`translate(${width/2},${height/2})`)
+            .selectAll(".line")
+            .data(data.links)
+            .enter()
+            .append("line")
+            .style("stroke-width", d=> 1);
+
+        let ForceSimulation = d3.forceSimulation(data.nodes)
+        .force("collide",
+            d3.forceCollide().radius(d => scale_radius(d.citations) * 2))
+        .force("x", d3.forceX())
+        .force("y", d3.forceY())
+        .force("charge", d3.forceManyBody())
+        .force("link",d3.forceLink(data.links)
+            .id(d=>d.id)
+            .distance(d=>.1)
+            .strength(d=>.1*.1)
+        )
+        .on("tick", ()=> {
+            node_elements
+                .attr("transform", d => `translate(${d.x}, ${d.y})`)
+            link_elements
+                .attr("x1",d=>d.source.x)
+                .attr("x2",d=>d.target.x)
+                .attr("y1",d=>d.source.y)
+                .attr("y2",d=>d.target.y)
+
+        });
+
+
+        // simulate(data,svg) // main function to make network
+    })
+
+
+
+</script>
+
+</body>
+</html>
